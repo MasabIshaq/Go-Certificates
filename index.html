@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Certificate Verification</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --ink: #1c2b23;
+    --paper: #f6f3ea;
+    --seal: #2f6d4f;
+    --seal-dark: #1f4a35;
+    --gold: #a9822f;
+    --line: #d8d0bb;
+    --muted: #6b6558;
+    --error: #a13d2f;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      radial-gradient(circle at 15% 20%, rgba(47,109,79,0.05), transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(169,130,47,0.06), transparent 40%);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:48px 20px 80px;
+  }
+
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--seal);
+    margin-bottom:14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow::before, .eyebrow::after{
+    content:'';
+    width:24px;
+    height:1px;
+    background:var(--gold);
+  }
+
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(28px, 5vw, 42px);
+    margin:0 0 10px;
+    text-align:center;
+    letter-spacing:-0.01em;
+  }
+
+  .sub{
+    color:var(--muted);
+    font-size:15px;
+    text-align:center;
+    max-width:440px;
+    margin:0 0 40px;
+    line-height:1.55;
+  }
+
+  .search-panel{
+    width:100%;
+    max-width:520px;
+    background:#fffdf8;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:28px;
+    box-shadow:0 1px 2px rgba(28,43,35,0.04), 0 12px 32px rgba(28,43,35,0.05);
+    position:relative;
+  }
+  .search-panel::before{
+    content:'';
+    position:absolute;
+    top:10px; left:10px; right:10px; bottom:10px;
+    border:1px solid var(--line);
+    border-radius:2px;
+    pointer-events:none;
+    opacity:0.6;
+  }
+
+  label{
+    display:block;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:10px;
+  }
+
+  .input-row{
+    display:flex;
+    gap:10px;
+  }
+
+  input[type="text"]{
+    flex:1;
+    padding:14px 16px;
+    border:1px solid var(--line);
+    border-radius:3px;
+    background:var(--paper);
+    font-family:'JetBrains Mono', monospace;
+    font-size:15px;
+    color:var(--ink);
+    outline:none;
+    transition:border-color 0.15s ease, background 0.15s ease;
+  }
+  input[type="text"]:focus{
+    border-color:var(--seal);
+    background:#fff;
+  }
+  input[type="text"]::placeholder{
+    color:#a39d8c;
+  }
+
+  button.search-btn{
+    padding:14px 22px;
+    background:var(--seal);
+    color:#fdfaf2;
+    border:none;
+    border-radius:3px;
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+    transition:background 0.15s ease, transform 0.1s ease;
+    white-space:nowrap;
+  }
+  button.search-btn:hover{ background:var(--seal-dark); }
+  button.search-btn:active{ transform:scale(0.98); }
+
+  .hint{
+    margin-top:12px;
+    font-size:12.5px;
+    color:var(--muted);
+  }
+
+  #result{
+    width:100%;
+    max-width:640px;
+    margin-top:28px;
+  }
+
+  .result-card{
+    background:#fffdf8;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:24px;
+    animation:rise 0.35s ease;
+  }
+  @keyframes rise{
+    from{ opacity:0; transform:translateY(8px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  .result-status{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--seal);
+    margin-bottom:16px;
+  }
+  .result-status .dot{
+    width:7px; height:7px;
+    border-radius:50%;
+    background:var(--seal);
+  }
+
+  .result-meta{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:18px;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .result-meta h2{
+    font-family:'Fraunces', serif;
+    font-size:22px;
+    font-weight:600;
+    margin:0;
+  }
+  .result-meta .ref{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .cert-frame{
+    border:1px solid var(--line);
+    border-radius:3px;
+    overflow:hidden;
+    background:#000;
+    margin-bottom:18px;
+  }
+  .cert-frame img{
+    display:block;
+    width:100%;
+    height:auto;
+  }
+
+  .actions{
+    display:flex;
+    gap:10px;
+  }
+
+  a.download-btn{
+    flex:1;
+    text-align:center;
+    padding:13px 18px;
+    background:var(--ink);
+    color:#fdfaf2;
+    border-radius:3px;
+    font-size:14px;
+    font-weight:600;
+    text-decoration:none;
+    transition:background 0.15s ease;
+  }
+  a.download-btn:hover{ background:#0d1911; }
+
+  .not-found{
+    background:#fffdf8;
+    border:1px solid var(--error);
+    border-radius:4px;
+    padding:22px 24px;
+    display:flex;
+    gap:14px;
+    align-items:flex-start;
+  }
+  .not-found .mark{
+    font-family:'Fraunces', serif;
+    font-size:22px;
+    color:var(--error);
+    line-height:1;
+  }
+  .not-found p{
+    margin:0;
+    font-size:14px;
+    line-height:1.55;
+  }
+  .not-found strong{
+    display:block;
+    font-size:15px;
+    margin-bottom:4px;
+  }
+
+  footer{
+    margin-top:auto;
+    padding-top:56px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--muted);
+    letter-spacing:0.05em;
+  }
+</style>
+</head>
+<body>
+
+  <div class="eyebrow">Verification Portal</div>
+  <h1>Confirm a Certificate</h1>
+  <p class="sub">Enter the reference code, roll number, or full name printed on the certificate to pull up the record.</p>
+
+  <div class="search-panel">
+    <label for="query">Reference code or name</label>
+    <div class="input-row">
+      <input type="text" id="query" placeholder="e.g. 0008 or full name" autocomplete="off">
+      <button class="search-btn" onclick="lookup()">Verify</button>
+    </div>
+    <div class="hint">Not case-sensitive. Spaces are ignored.</div>
+  </div>
+
+  <div id="result"></div>
+
+  <footer>Go Projects — Certificate Registry</footer>
+
+<script>
+  let certificates = {};
+  let byName = {};
+
+  async function loadCertificates() {
+    try {
+      const res = await fetch('certificates.json', { cache: 'no-store' });
+      certificates = await res.json();
+    } catch (e) {
+      certificates = {};
+    }
+    byName = {};
+    for (const key in certificates) {
+      byName[normalize(certificates[key].name)] = key;
+    }
+  }
+
+  function normalize(str) {
+    return String(str).trim().toLowerCase().replace(/\s+/g, '');
+  }
+
+  function lookup() {
+    const input = document.getElementById('query').value;
+    const norm = normalize(input);
+    const resultEl = document.getElementById('result');
+
+    if (!norm) {
+      resultEl.innerHTML = '';
+      return;
+    }
+
+    let key = certificates[norm] ? norm : byName[norm];
+    let record = key ? certificates[key] : null;
+
+    if (record) {
+      resultEl.innerHTML = `
+        <div class="result-card">
+          <div class="result-status"><span class="dot"></span> Record verified</div>
+          <div class="result-meta">
+            <h2>${escapeHtml(record.name)}</h2>
+            <span class="ref">${escapeHtml(key.toUpperCase())}</span>
+          </div>
+          <div class="cert-frame">
+            <img src="${record.file}" alt="Certificate for ${escapeHtml(record.name)}">
+          </div>
+          <div class="actions">
+            <a class="download-btn" href="${record.file}" download>Download Certificate</a>
+          </div>
+        </div>
+      `;
+    } else {
+      resultEl.innerHTML = `
+        <div class="not-found">
+          <span class="mark">✕</span>
+          <p><strong>No matching record</strong>
+          We couldn't find a certificate for "${escapeHtml(input)}". Double-check the reference code or try the full name exactly as printed.</p>
+        </div>
+      `;
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  document.getElementById('query').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') lookup();
+  });
+
+  loadCertificates();
+</script>
+</body>
+</html>
+  }
+
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(28px, 5vw, 42px);
+    margin:0 0 10px;
+    text-align:center;
+    letter-spacing:-0.01em;
+  }
+
+  .sub{
+    color:var(--muted);
+    font-size:15px;
+    text-align:center;
+    max-width:440px;
+    margin:0 0 40px;
+    line-height:1.55;
+  }
+
+  .search-panel{
+    width:100%;
+    max-width:520px;
+    background:#fffdf8;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:28px;
+    box-shadow:0 1px 2px rgba(28,43,35,0.04), 0 12px 32px rgba(28,43,35,0.05);
+    position:relative;
+  }
+  .search-panel::before{
+    content:'';
+    position:absolute;
+    top:10px; left:10px; right:10px; bottom:10px;
+    border:1px solid var(--line);
+    border-radius:2px;
+    pointer-events:none;
+    opacity:0.6;
+  }
+
+  label{
+    display:block;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:10px;
+  }
+
+  .input-row{
+    display:flex;
+    gap:10px;
+  }
+
+  input[type="text"]{
+    flex:1;
+    padding:14px 16px;
+    border:1px solid var(--line);
+    border-radius:3px;
+    background:var(--paper);
+    font-family:'JetBrains Mono', monospace;
+    font-size:15px;
+    color:var(--ink);
+    outline:none;
+    transition:border-color 0.15s ease, background 0.15s ease;
+  }
+  input[type="text"]:focus{
+    border-color:var(--seal);
+    background:#fff;
+  }
+  input[type="text"]::placeholder{
+    color:#a39d8c;
+  }
+
+  button.search-btn{
+    padding:14px 22px;
+    background:var(--seal);
+    color:#fdfaf2;
+    border:none;
+    border-radius:3px;
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+    transition:background 0.15s ease, transform 0.1s ease;
+    white-space:nowrap;
+  }
+  button.search-btn:hover{ background:var(--seal-dark); }
+  button.search-btn:active{ transform:scale(0.98); }
+
+  .hint{
+    margin-top:12px;
+    font-size:12.5px;
+    color:var(--muted);
+  }
+
+  #result{
+    width:100%;
+    max-width:640px;
+    margin-top:28px;
+  }
+
+  .result-card{
+    background:#fffdf8;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:24px;
+    animation:rise 0.35s ease;
+  }
+  @keyframes rise{
+    from{ opacity:0; transform:translateY(8px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  .result-status{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--seal);
+    margin-bottom:16px;
+  }
+  .result-status .dot{
+    width:7px; height:7px;
+    border-radius:50%;
+    background:var(--seal);
+  }
+
+  .result-meta{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:18px;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .result-meta h2{
+    font-family:'Fraunces', serif;
+    font-size:22px;
+    font-weight:600;
+    margin:0;
+  }
+  .result-meta .ref{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .cert-frame{
+    border:1px solid var(--line);
+    border-radius:3px;
+    overflow:hidden;
+    background:#000;
+    margin-bottom:18px;
+  }
+  .cert-frame img{
+    display:block;
+    width:100%;
+    height:auto;
+  }
+
+  .actions{
+    display:flex;
+    gap:10px;
+  }
+
+  a.download-btn{
+    flex:1;
+    text-align:center;
+    padding:13px 18px;
+    background:var(--ink);
+    color:#fdfaf2;
+    border-radius:3px;
+    font-size:14px;
+    font-weight:600;
+    text-decoration:none;
+    transition:background 0.15s ease;
+  }
+  a.download-btn:hover{ background:#0d1911; }
+
+  .not-found{
+    background:#fffdf8;
+    border:1px solid var(--error);
+    border-radius:4px;
+    padding:22px 24px;
+    display:flex;
+    gap:14px;
+    align-items:flex-start;
+  }
+  .not-found .mark{
+    font-family:'Fraunces', serif;
+    font-size:22px;
+    color:var(--error);
+    line-height:1;
+  }
+  .not-found p{
+    margin:0;
+    font-size:14px;
+    line-height:1.55;
+  }
+  .not-found strong{
+    display:block;
+    font-size:15px;
+    margin-bottom:4px;
+  }
+
+  footer{
+    margin-top:auto;
+    padding-top:56px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--muted);
+    letter-spacing:0.05em;
+  }
+</style>
+</head>
+<body>
+
+  <div class="eyebrow">Verification Portal</div>
+  <h1>Confirm a Certificate</h1>
+  <p class="sub">Enter the reference code, roll number, or full name printed on the certificate to pull up the record.</p>
+
+  <div class="search-panel">
+    <label for="query">Reference code or name</label>
+    <div class="input-row">
+      <input type="text" id="query" placeholder="e.g. 0008 or full name" autocomplete="off">
+      <button class="search-btn" onclick="lookup()">Verify</button>
+    </div>
+    <div class="hint">Not case-sensitive. Spaces are ignored.</div>
+  </div>
+
+  <div id="result"></div>
+
+  <footer>Go Projects — Certificate Registry</footer>
+
+<script>
+  let certificates = {};
+  let byName = {};
+
+  async function loadCertificates() {
+    try {
+      const res = await fetch('certificates.json', { cache: 'no-store' });
+      certificates = await res.json();
+    } catch (e) {
+      certificates = {};
+    }
+    byName = {};
+    for (const key in certificates) {
+      byName[normalize(certificates[key].name)] = key;
+    }
+  }
+
+  function normalize(str) {
+    return String(str).trim().toLowerCase().replace(/\s+/g, '');
+  }
+
+  function lookup() {
+    const input = document.getElementById('query').value;
+    const norm = normalize(input);
+    const resultEl = document.getElementById('result');
+
+    if (!norm) {
+      resultEl.innerHTML = '';
+      return;
+    }
+
+    let key = certificates[norm] ? norm : byName[norm];
+    let record = key ? certificates[key] : null;
+
+    if (record) {
+      resultEl.innerHTML = `
+        <div class="result-card">
+          <div class="result-status"><span class="dot"></span> Record verified</div>
+          <div class="result-meta">
+            <h2>${escapeHtml(record.name)}</h2>
+            <span class="ref">${escapeHtml(key.toUpperCase())}</span>
+          </div>
+          <div class="cert-frame">
+            <img src="${record.file}" alt="Certificate for ${escapeHtml(record.name)}">
+          </div>
+          <div class="actions">
+            <a class="download-btn" href="${record.file}" download>Download Certificate</a>
+          </div>
+        </div>
+      `;
+    } else {
+      resultEl.innerHTML = `
+        <div class="not-found">
+          <span class="mark">✕</span>
+          <p><strong>No matching record</strong>
+          We couldn't find a certificate for "${escapeHtml(input)}". Double-check the reference code or try the full name exactly as printed.</p>
+        </div>
+      `;
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  document.getElementById('query').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') lookup();
+  });
+
+  loadCertificates();
+</script>
+</body>
+</html>
